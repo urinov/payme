@@ -1,26 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="uz">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Payme demo</title>
+  <meta charset="UTF-8" />
+  <title>To‘lov test</title>
 </head>
 <body>
-  <h1>Payme demo</h1>
-  <p>Quyidagi tugmani bosing va Payme checkout’ga o‘ting.</p>
-  <button id="pay">Payme orqali to‘lash</button>
+  <h1>To‘lov test sahifasi</h1>
+
+  <button onclick="startPayme()">Payme bilan to‘lov</button>
+  <button onclick="startClick()">Click bilan to‘lov</button>
 
   <script>
-    const ORDER_ID = "197";
-    const AMOUNT_TIYIN = 500000; // 5 so'm = 500 tiyin
-
-    document.getElementById('pay').onclick = async () => {
-      const res = await fetch('/api/checkout-url?order_id=' + ORDER_ID + '&amount=' + AMOUNT_TIYIN);
-      const { url } = await res.json();
-      if (!url) { alert('URL olinmadi'); return; }
-      location.href = url;
-    };
+    async function startPayme() {
+      const resp = await fetch('/api/checkout-url?order_id=order123&amount=50000');
+      const data = await resp.json();
+      window.location.href = data.url;
+    }
+    async function startClick() {
+      const resp = await fetch('/api/click-url?order_id=order123&amount=50000');
+      const data = await resp.json();
+      window.location.href = data.url;
+    }
   </script>
 </body>
 </html>
-
