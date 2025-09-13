@@ -1,4 +1,4 @@
-// server.js — Payme + Click (to‘g‘ri tartib)
+// server.js — Payme + Click + inkremental order_id (0000001, 0000002, ...)
 
 import express from 'express';
 import bodyParser from 'body-parser';
@@ -18,20 +18,26 @@ const app = express();
 
 // middleware
 app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true })); // Click POST x-www-form-urlencoded ham yuboradi
+app.use(express.urlencoded({ extended: true })); // Click x-www-form-urlencoded ham yuborishi mumkin
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ---- "DB" ----
+// ---- "DB" (demo) ----
 const orders = new Map(); // order_id -> { amount(=tiyin), state, ... }
 
+// ---- Inkremenal order counter (7 xonali) ----
 let orderCounter = 1; // 0000001 dan boshlanadi
-
 function getNextOrderId() {
-  const id = String(orderCounter).padStart(7, '0'); // 7 xonali qilib
+  const id = String(orderCounter).padStart(7, '0'); // 0000001, 0000002, ...
   orderCounter++;
   return id;
 }
 
+// === YANGI: Har chaqirilganda yangi order_id beradi ===
+app.get('/api/new-order', (req, res) => {
+  const id = getNextOrderId();
+  orders.set(id, { amount: 0, state: 'new' }); // boshlang'ich yozuv
+  res.json({ order_id: id });
+});
 
 // ---- HELPERS (Payme) ----
 function requirePaymeAuth(req, res) {
@@ -59,7 +65,7 @@ app.post('/payme', (req, res) => {
       const { amount, account } = params;
       const orderId = String(account?.order_id || '');
       const order = orders.get(orderId);
-      if (!order)                  return res.json(err(id, -31050, { uz: 'Buyurtma topilmadi' }));
+      if (!order)                    return res.json(err(id, -31050, { uz: 'Buyurtma topilmadi' }));
       if (+order.amount !== +amount) return res.json(err(id, -31001, { uz: 'Summalar mos emas' }));
       return res.json(ok(id, { allow: true }));
     }
@@ -117,29 +123,25 @@ app.post('/payme', (req, res) => {
 });
 
 // ===================== CLICK: REDIRECT URL =====================
-// my.click.uz/services/pay... havolani yasaydi
 app.get('/api/click-url', (req, res) => {
   const order_id     = String(req.query.order_id || '');
   const amount_tiyin = Number(req.query.amount || 0);
+  if (!order_id || !amount_tiyin) return res.json({ error: 'order_id va amount (tiyin) shart' });
 
-  if (!order_id || !amount_tiyin) {
-    return res.json({ error: 'order_id va amount (tiyin) shart' });
-  }
-  if (!orders.has(order_id)) {
-    orders.set(order_id, { amount: amount_tiyin, state: 'new' });
-  }
+  // buyurtmani yangilab/yaratib qo'yamiz
+  const prev = orders.get(order_id) || { amount: 0, state: 'new' };
+  orders.set(order_id, { ...prev, amount: amount_tiyin });
 
   const amount_soum = (amount_tiyin / 100).toFixed(2); // N.NN
 
   const u = new URL('https://my.click.uz/services/pay');
   u.searchParams.set('service_id',  process.env.CLICK_SERVICE_ID);
   u.searchParams.set('merchant_id', process.env.CLICK_MERCHANT_ID);
-  // ixtiyoriy:
   if (process.env.CLICK_MERCHANT_USER_ID) {
     u.searchParams.set('merchant_user_id', process.env.CLICK_MERCHANT_USER_ID);
   }
   u.searchParams.set('transaction_param', order_id);
-  u.searchParams.set('amount',            amount_soum);
+  u.searchParams.set('amount', amount_soum);
   if (process.env.CLICK_RETURN_URL) {
     u.searchParams.set('return_url', process.env.CLICK_RETURN_URL);
   }
@@ -151,20 +153,15 @@ app.get('/api/click-url', (req, res) => {
 app.post('/click/callback', (req, res) => {
   const p = Object.assign({}, req.body);
 
-  // Minimal tekshiruv
   const required = ['click_trans_id','service_id','merchant_trans_id','amount','action','sign_time','sign_string'];
-  for (const k of required) {
-    if (typeof p[k] === 'undefined') {
-      return res.json({ error: -1, error_note: `Missing field: ${k}` });
-    }
-  }
+  for (const k of required) if (typeof p[k] === 'undefined') return res.json({ error: -1, error_note: `Missing field: ${k}` });
 
   const orderId = String(p.merchant_trans_id);
   const order   = orders.get(orderId);
   if (!order) return res.json({ error: -5, error_note: 'Order not found' });
 
-  const action = Number(p.action);       // 0=prepare, 1=complete
-  const amtStr = String(p.amount);       // Click N.NN format
+  const action = Number(p.action);     // 0=prepare, 1=complete
+  const amtStr = String(p.amount);     // N.NN (so'm)
   const secret = process.env.CLICK_SECRET_KEY;
 
   if (action === 0) {
@@ -177,20 +174,17 @@ app.post('/click/callback', (req, res) => {
       action:         p.action,
       sign_time:      p.sign_time
     });
-    if (expected !== String(p.sign_string).toLowerCase()) {
-      return res.json({ error: -1, error_note: 'Invalid sign (prepare)' });
-    }
+    if (expected !== String(p.sign_string).toLowerCase()) return res.json({ error: -1, error_note: 'Invalid sign (prepare)' });
 
-    // Summani solishtirish: order.amount = tiyinda
     if (Math.round(order.amount / 100) !== Math.round(Number(amtStr))) {
       return res.json({ error: -2, error_note: 'Incorrect amount' });
     }
 
     order.state = 'created';
     return res.json({
-      click_trans_id:       p.click_trans_id,
-      merchant_trans_id:    orderId,
-      merchant_prepare_id:  orderId,
+      click_trans_id:      p.click_trans_id,
+      merchant_trans_id:   orderId,
+      merchant_prepare_id: orderId,
       error: 0,
       error_note: 'Success'
     });
@@ -211,9 +205,7 @@ app.post('/click/callback', (req, res) => {
       action:              p.action,
       sign_time:           p.sign_time
     });
-    if (expected !== String(p.sign_string).toLowerCase()) {
-      return res.json({ error: -1, error_note: 'Invalid sign (complete)' });
-    }
+    if (expected !== String(p.sign_string).toLowerCase()) return res.json({ error: -1, error_note: 'Invalid sign (complete)' });
 
     if (Number(p.error) === 0) {
       order.state = 'performed';
@@ -243,8 +235,11 @@ app.post('/click/callback', (req, res) => {
 app.get('/api/checkout-url', (req, res) => {
   const order_id = String(req.query.order_id || '');
   const amount   = Number(req.query.amount || 0); // tiyinda
+  if (!order_id || !amount) return res.json({ error: 'order_id va amount (tiyin) shart' });
 
-  if (!orders.has(order_id)) orders.set(order_id, { amount, state: 'new' });
+  // buyurtmani yangilab/yaratib qo'yamiz
+  const prev = orders.get(order_id) || { amount: 0, state: 'new' };
+  orders.set(order_id, { ...prev, amount });
 
   const url = buildCheckoutUrl({
     merchantId:     process.env.PAYME_MERCHANT_ID,
