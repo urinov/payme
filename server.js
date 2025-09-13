@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildCheckoutUrl } from './utils/buildCheckoutUrl.js';
+import { buildPrepareSign, buildCompleteSign } from './utils/clickSign.js';
+app.use(express.urlencoded({ extended: true })); // Click POST yuboradi
+
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -119,3 +122,47 @@ app.get('/api/checkout-url', (req, res) => {
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log('Server running on port ' + port));
 
+// Click callback: Prepare va Complete
+app.post('/click/callback', (req, res) => {
+  const p = Object.assign({}, req.body);
+  const orderId = String(p.merchant_trans_id);
+  const order = orders.get(orderId);
+  if (!order) return res.json({ error: -5, error_note: 'Order not found' });
+
+  const action = Number(p.action);
+  const amt = String(p.amount);
+  const secret = process.env.CLICK_SECRET_KEY;
+
+  if (action === 0) {
+    const expected = buildPrepareSign({
+      click_trans_id: p.click_trans_id, service_id: p.service_id, secret_key: secret,
+      merchant_trans_id: p.merchant_trans_id, amount: amt, action: p.action, sign_time: p.sign_time
+    });
+    if (expected !== String(p.sign_string).toLowerCase()) return res.json({ error: -1, error_note: 'Invalid sign (prepare)' });
+    order.state = 'created';
+    return res.json({
+      click_trans_id: p.click_trans_id,
+      merchant_trans_id: orderId,
+      merchant_prepare_id: orderId,
+      error: 0, error_note: 'Success'
+    });
+  }
+
+  if (action === 1) {
+    const expected = buildCompleteSign({
+      click_trans_id: p.click_trans_id, service_id: p.service_id, secret_key: secret,
+      merchant_trans_id: p.merchant_trans_id, merchant_prepare_id: p.merchant_prepare_id,
+      amount: amt, action: p.action, sign_time: p.sign_time
+    });
+    if (expected !== String(p.sign_string).toLowerCase()) return res.json({ error: -1, error_note: 'Invalid sign (complete)' });
+    order.state = 'performed';
+    order.perform_time = Date.now();
+    return res.json({
+      click_trans_id: p.click_trans_id,
+      merchant_trans_id: orderId,
+      merchant_confirm_id: orderId,
+      error: 0, error_note: 'Success'
+    });
+  }
+  return res.json({ error: -3, error_note: 'Unknown action' });
+});
