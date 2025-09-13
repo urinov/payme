@@ -12,12 +12,12 @@
 
   <script>
     async function startPayme() {
-      const resp = await fetch('/api/checkout-url?order_id=order123&amount=50000');
+      const resp = await fetch('/api/checkout-url?order_id=order123&amount=500000');
       const data = await resp.json();
       window.location.href = data.url;
     }
     async function startClick() {
-      const resp = await fetch('/api/click-url?order_id=order123&amount=50000');
+      const resp = await fetch('/api/click-url?order_id=order123&amount=500000');
       const data = await resp.json();
       window.location.href = data.url;
     }
