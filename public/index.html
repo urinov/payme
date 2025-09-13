@@ -11,16 +11,26 @@
   <button onclick="startClick()">Click bilan to‘lov</button>
 
   <script>
-    async function startPayme() {
-      const resp = await fetch('/api/checkout-url?order_id=order123&amount=5000000');
-      const data = await resp.json();
-      window.location.href = data.url;
-    }
-    async function startClick() {
-      const resp = await fetch('/api/click-url?order_id=order123&amount=5000000');
-      const data = await resp.json();
-      window.location.href = data.url;
-    }
-  </script>
+  async function createOrder() {
+    const resp = await fetch('/api/new-order');
+    const data = await resp.json();
+    return data.order_id;
+  }
+
+  async function startPayme() {
+    const orderId = await createOrder();
+    const resp = await fetch(`/api/checkout-url?order_id=${orderId}&amount=1100000`);
+    const data = await resp.json();
+    window.location.href = data.url;
+  }
+
+  async function startClick() {
+    const orderId = await createOrder();
+    const resp = await fetch(`/api/click-url?order_id=${orderId}&amount=1100000`);
+    const data = await resp.json();
+    window.location.href = data.url;
+  }
+</script>
+
 </body>
 </html>
