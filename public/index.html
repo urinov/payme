@@ -1,1 +1,26 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Payme demo</title>
+</head>
+<body>
+  <h1>Payme demo</h1>
+  <p>Quyidagi tugmani bosing va Payme checkout’ga o‘ting.</p>
+  <button id="pay">Payme orqali to‘lash</button>
+
+  <script>
+    const ORDER_ID = "197";
+    const AMOUNT_TIYIN = 500; // 5 so'm = 500 tiyin
+
+    document.getElementById('pay').onclick = async () => {
+      const res = await fetch('/api/checkout-url?order_id=' + ORDER_ID + '&amount=' + AMOUNT_TIYIN);
+      const { url } = await res.json();
+      if (!url) { alert('URL olinmadi'); return; }
+      location.href = url;
+    };
+  </script>
+</body>
+</html>
 
