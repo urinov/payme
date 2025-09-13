@@ -12,7 +12,7 @@
 
   <script>
     const ORDER_ID = "197";
-    const AMOUNT_TIYIN = 500; // 5 so'm = 500 tiyin
+    const AMOUNT_TIYIN = 500000; // 5 so'm = 500 tiyin
 
     document.getElementById('pay').onclick = async () => {
       const res = await fetch('/api/checkout-url?order_id=' + ORDER_ID + '&amount=' + AMOUNT_TIYIN);
