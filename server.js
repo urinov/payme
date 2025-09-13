@@ -24,6 +24,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ---- "DB" ----
 const orders = new Map(); // order_id -> { amount(=tiyin), state, ... }
 
+let orderCounter = 1; // 0000001 dan boshlanadi
+
+function getNextOrderId() {
+  const id = String(orderCounter).padStart(7, '0'); // 7 xonali qilib
+  orderCounter++;
+  return id;
+}
+
+
 // ---- HELPERS (Payme) ----
 function requirePaymeAuth(req, res) {
   const auth = req.get('X-Auth');
