@@ -1,3 +1,4 @@
+// server.js — app init + routerlarni ulash
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
@@ -14,19 +15,28 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Parsers
 app.use(bodyParser.json({ limit: '1mb', type: ['application/json', 'application/*+json'] }));
 app.use(express.urlencoded({ extended: true }));
 
-// health check
+// Health
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-// routers
+// Routers
 app.use('/payme', paymeRouter);
 app.use('/click', clickRouter);
 
-// static files
+// Static (API'lardan keyin)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// start
+// 404 JSON (POST)
+app.post('*', (req, res) => {
+  res.status(404).json({
+    jsonrpc: '2.0',
+    error: { code: -32601, message: { uz: 'Noto‘g‘ri endpoint' } },
+    id: req.body?.id ?? null
+  });
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log('Server running on port ' + port));
