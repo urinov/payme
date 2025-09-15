@@ -26,6 +26,10 @@ function nextOrderId() {
   orderCounter += 1;
   return id;
 }
+// vaqtinchalik
+console.log('HEADERS:', req.headers);
+
+
 
 // Authentication helper for Payme
 function requirePaymeAuth(req, res) {
