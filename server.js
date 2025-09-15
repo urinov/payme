@@ -171,6 +171,11 @@ app.post('/click/callback', (req, res) => {
   return res.json({ error: -3, error_note: 'Unknown action' });
 });
 
+app.post('/payme', (req, res, next) => {
+  console.log('📥 AUTH HEADER:', req.headers.authorization);
+  next();
+}, paymeHandler);
+
 // Payme JSON-RPC handler
 app.post('/payme', (req, res) => {
   const unauth = requirePaymeAuth(req, res);
