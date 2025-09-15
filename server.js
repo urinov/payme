@@ -56,7 +56,7 @@ function requirePaymeAuth(req, res) {
     return res.status(200).json({
       jsonrpc: '2.0',
       error: {
-        code: -32504, // Неверная авторизация
+        code:  -31055, // Неверная авторизация
         message: { uz: 'Ruxsat yo‘q', ru: 'Доступ запрещен', en: 'Unauthorized' }
       },
       id: req.body?.id ?? null
