@@ -1,36 +1,66 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-  <meta charset="UTF-8" />
-  <title>To‘lov test</title>
+  <meta charset="UTF-8">
+  <title>To‘lov test sahifasi</title>
 </head>
 <body>
-  <h1>To‘lov test sahifasi</h1>
+  <h1>To‘lov tizimi test</h1>
 
-  <button onclick="startPayme()">Payme bilan to‘lov</button>
-  <button onclick="startClick()">Click bilan to‘lov</button>
+  <div>
+    <label>To‘lov summasi (so‘m):</label>
+    <input type="number" id="amount" value="11000" />
+  </div>
+
+  <button onclick="startPayme()">💸 Payme orqali to‘lov</button>
+  <button onclick="startClick()">💳 Click orqali to‘lov</button>
+
+  <pre id="log"></pre>
 
   <script>
-  async function createOrder() {
-    const resp = await fetch('/api/new-order');
-    const data = await resp.json();
-    return data.order_id;
-  }
+    async function createOrder() {
+      const resp = await fetch('/api/new-order');
+      const data = await resp.json();
+      return data.order_id;
+    }
 
-  async function startPayme() {
-    const orderId = await createOrder();
-    const resp = await fetch(`/api/checkout-url?order_id=${orderId}&amount=1100000`);
-    const data = await resp.json();
-    window.location.href = data.url;
-  }
+    function log(msg) {
+      document.getElementById('log').textContent += msg + "\n";
+    }
 
-  async function startClick() {
-    const orderId = await createOrder();
-    const resp = await fetch(`/api/click-url?order_id=${orderId}&amount=1100000`);
-    const data = await resp.json();
-    window.location.href = data.url;
-  }
-</script>
+    async function startPayme() {
+      const orderId = await createOrder();
+      const amountSo‘m = Number(document.getElementById('amount').value);
+      const amountTiyin = amountSo‘m * 100;
 
+      log(`Payme: order_id=${orderId}, amount=${amountTiyin}`);
+
+      const resp = await fetch(`/api/checkout-url?order_id=${orderId}&amount=${amountTiyin}`);
+      const data = await resp.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        log('Xatolik: ' + JSON.stringify(data));
+      }
+    }
+
+    async function startClick() {
+      const orderId = await createOrder();
+      const amountSo‘m = Number(document.getElementById('amount').value);
+      const amountTiyin = amountSo‘m * 100;
+
+      log(`Click: order_id=${orderId}, amount=${amountTiyin}`);
+
+      const resp = await fetch(`/api/click-url?order_id=${orderId}&amount=${amountTiyin}`);
+      const data = await resp.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        log('Xatolik: ' + JSON.stringify(data));
+      }
+    }
+  </script>
 </body>
 </html>
