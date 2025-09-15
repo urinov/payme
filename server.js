@@ -11,7 +11,13 @@ const app = express();
 
 // Middleware for parsing JSON and URL-encoded bodies
 app.use(bodyParser.json({ limit: '1mb', type: ['application/json', 'application/*+json'] }));
-app.use(express.urlencoded({ extended: true }));
+app.use((req, _res, next) => {
+  if (req.path === '/payme') {
+    console.log('📥 HEADERS:', req.headers);
+  }
+  next();
+});
+
 
 // Health check endpoint
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
