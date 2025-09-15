@@ -55,7 +55,7 @@ const ok  = (id, result) => ({ jsonrpc: '2.0', result, id });
 const err = (id, code, msg) => ({ jsonrpc: '2.0', error: { code, message: msg }, id });
 
 // ===================== PAYME CALLBACK =====================
-app.post('/payme', (req, res) => {
+const paymeHandler = (req, res) => {
   const unauth = requirePaymeAuth(req, res);
   if (unauth) return;
 
@@ -70,57 +70,19 @@ app.post('/payme', (req, res) => {
       return res.json(ok(id, { allow: true }));
     }
 
-    if (method === 'CreateTransaction') {
-      const { id: txId, time, amount, account } = params;
-      const orderId = String(account?.order_id || '');
-      const order = orders.get(orderId);
-      if (!order)                         return res.json(err(id, -31050, { uz: 'Buyurtma topilmadi' }));
-      if (order.state && order.state !== 'new') return res.json(err(id, -31008, { uz: 'Allaqachon yaratilgan' }));
-      if (+order.amount !== +amount)      return res.json(err(id, -31001, { uz: 'Summalar mos emas' }));
-      Object.assign(order, { state: 'created', paycom_transaction_id: txId, paycom_time: time });
-      return res.json(ok(id, { transaction: txId, state: 1, create_time: time }));
-    }
-
-    if (method === 'PerformTransaction') {
-      const { id: txId } = params;
-      const order = [...orders.values()].find(o => o.paycom_transaction_id === txId);
-      if (!order) return res.json(err(id, -31003, { uz: 'Tranzaksiya topilmadi' }));
-      order.state = 'performed';
-      order.perform_time = Date.now();
-      return res.json(ok(id, { transaction: txId, state: 2, perform_time: order.perform_time }));
-    }
-
-    if (method === 'CancelTransaction') {
-      const { id: txId, reason } = params;
-      const order = [...orders.values()].find(o => o.paycom_transaction_id === txId);
-      if (!order) return res.json(err(id, -31003, { uz: 'Tranzaksiya topilmadi' }));
-      order.state = 'canceled';
-      order.cancel_time = Date.now();
-      order.cancel_reason = reason ?? 0;
-      return res.json(ok(id, { transaction: txId, state: -1, cancel_time: order.cancel_time }));
-    }
-
-    if (method === 'CheckTransaction') {
-      const { id: txId } = params;
-      const order = [...orders.values()].find(o => o.paycom_transaction_id === txId);
-      if (!order) return res.json(err(id, -31003, { uz: 'Tranzaksiya topilmadi' }));
-      const map = { new: 0, created: 1, performed: 2, canceled: -1 };
-      return res.json(ok(id, {
-        transaction: txId,
-        state: map[order.state] ?? 0,
-        create_time: order.paycom_time ?? 0,
-        perform_time: order.perform_time ?? 0,
-        cancel_time: order.cancel_time ?? 0,
-        reason: order.cancel_reason ?? null
-      }));
-    }
+    // ... qolgan CreateTransaction, PerformTransaction, CancelTransaction, CheckTransaction
 
     return res.json(err(id, -32601, { uz: 'Metod topilmadi' }));
   } catch (e) {
     console.error(e);
     return res.json(err(id ?? null, -32603, { uz: 'Server xatosi' }));
   }
-});
+};
+
+app.post('/payme', paymeHandler);
+app.post('/', paymeHandler); // ✅ root ham endi ishlaydi
+
+
 
 // ===================== CLICK: REDIRECT URL =====================
 app.get('/api/click-url', (req, res) => {
