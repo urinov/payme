@@ -45,7 +45,7 @@ function requirePaymeAuth(req, res) {
   if (!auth || auth !== process.env.PAYME_KEY) {
     return res.status(200).json({
       jsonrpc: '2.0',
-      error: { code: -32504, message: { uz: 'Ruxsat yo‘q', ru: 'Доступ запрещен', en: 'Unauthorized' } },
+      error: { code: -31099, message: { uz: 'Ruxsat yo‘q', ru: 'Доступ запрещен', en: 'Unauthorized' } },
       id: req.body?.id ?? null
     });
   }
